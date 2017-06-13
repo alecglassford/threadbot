@@ -16,9 +16,16 @@
     "eslint-plugin-import": "^2.2.0",
     "husky": "^0.13.4"
   },
+  "engines": {
+    "node": "^8.1.0"
+  },
   "scripts": {
+    "start": "node index.js",
     "test": "eslint .",
     "precommit": "yarn test",
     "prepush": "yarn test"
+  },
+  "now": {
+    "dotenv": ".env"
   }
 }
