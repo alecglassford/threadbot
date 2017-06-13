@@ -10,46 +10,17 @@ const T = new Twit({
   access_token_secret: process.env.ACCESS_TOKEN_SECRET,
 });
 
-const SCREEN_NAME = process.env.SCREEN_NAME;
-
-// ~~~ Define all the things we can tweet, along with probability weights!
-
-const fixedThreads = [
-  ['<THREAD>', 100],
-  ['1/', 70],
-  ['THREAD', 90],
-  ['thread', 40],
-  ['#thread', 20],
-  ['[THREAD]', 10],
-  ['(THREAD)', 50],
-  ['(thread)', 10],
-  ['thread:', 40],
-  ['time for a thread', 5],
-  ['It\'s time for some game theory.', 1],
-  ['tweetstorm:', 1],
-];
-
-let quoteThread;
-let outOfThread;
-const dynamicThreads = [
-  [quoteThread, 10],
-  [outOfThread, 5],
-];
-
-// ~~~ End defining the things we want to tweet
+const util = require('./util');
+const fixedThreads = require('./fixed');
+const dynamicThreads = require('./dynamic')(T);
 
 const totalWeight = [...fixedThreads, ...dynamicThreads].reduce(
   (soFar, curr) => soFar + curr[1],
   0,
 );
 
-const randomInt = function randomIntFunc(max) {
-  return Math.floor(Math.random() * max);
-};
-
-let sendTweet;
-const chooseTweet = function chooseTweetFunc() {
-  const choice = randomInt(totalWeight);
+const chooseTweet = function chooseTweetFunc(sendTweet) {
+  const choice = util.randomInt(totalWeight);
   let weightSoFar = 0;
 
   // Iterate through fixed threads first
@@ -57,7 +28,7 @@ const chooseTweet = function chooseTweetFunc() {
     const thread = fixedThreads[i];
     weightSoFar += thread[1];
     if (weightSoFar > choice) { // This means we're done iterating!
-      sendTweet({ status: thread[0] });
+      sendTweet(null, { status: thread[0] });
       return;
     }
   }
@@ -67,60 +38,40 @@ const chooseTweet = function chooseTweetFunc() {
     const thread = dynamicThreads[i];
     weightSoFar += thread[1];
     if (weightSoFar > choice) { // This means we're done iterating!
-      thread[0]();
+      thread[0](sendTweet);
       return;
     }
   }
 
   console.error(`did not find thread for choice ${choice}`);
-  chooseTweet();
+  console.log('Trying again ...');
+  chooseTweet(sendTweet);
 };
 
-let schedule;
-sendTweet = function sendTweetFunc(params) {
-  T.post('statuses/update', params, (err) => {
-    if (err) {
-      console.error(err);
+const sendTweet = function sendTweetFunc(err, params) {
+  if (err) {
+    console.error('Error composing tweet:');
+    console.error(err);
+    console.log('Trying again ...');
+    chooseTweet(sendTweet);
+    return;
+  }
+  T.post('statuses/update', params, (tErr) => {
+    if (tErr) {
+      console.error('Error posting tweet:');
+      console.error(tErr);
+      console.log('Trying again ...');
+      chooseTweet(sendTweet);
+      return;
     }
-    schedule();
+    util.schedule(chooseTweet, sendTweet);
   });
 };
 
-schedule = function scheduleFunc() {
-  const MS_PER_SEC = 1000;
-  const SEC_PER_MIN = 60;
-  const MIN_PER_HR = 60;
-  const MAX_HRS = 24;
-  const MAX_MS = MAX_HRS * MIN_PER_HR * SEC_PER_MIN * MS_PER_SEC;
-  const waitTime = randomInt(MAX_MS);
-  console.log(`waiting for ${waitTime} ms until next tweet...`);
-  setTimeout(chooseTweet, waitTime);
-};
+chooseTweet(sendTweet);
 
-// ~~~ Dynamic threads!
-
-quoteThread = function quoteThreadFunc() {
-  T.get(
-    'statuses/user_timeline',
-    { screen_name: SCREEN_NAME, count: 200 },
-    (err, data) => {
-      if (err) {
-        console.error(err);
-        schedule();
-      }
-      const index = randomInt(data.length);
-      const id = data[index].id;
-      sendTweet({
-        status: `👇 https://twitter.com/${SCREEN_NAME}/status/${id}`,
-      });
-    },
-  );
-};
-
-outOfThread = function outOfThreadFunc() {
-  sendTweet({ status: `<THREAD> 1/${randomInt(2000)}` });
-};
-
-// ~~~ End dynamic threads!
-
-chooseTweet();
+// Maybe this will make Zeit Now happy?
+require('http').createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset="utf-8"' });
+  res.end('threadbot is 📯-ing intermittently …\n');
+}).listen(8000);

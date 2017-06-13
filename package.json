@@ -1,6 +1,6 @@
 {
   "name": "threadbot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "<THREAD>",
   "main": "index.js",
   "repository": "https://github.com/alecglassford/threadbot",
@@ -26,6 +26,9 @@
     "prepush": "yarn test"
   },
   "now": {
-    "dotenv": ".env"
+    "dotenv": ".env",
+    "env": {
+      "NODE_ENV": "production"
+    }
   }
 }
