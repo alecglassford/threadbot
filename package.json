@@ -1,0 +1,13 @@
+{
+  "name": "threadbot",
+  "version": "1.0.0",
+  "description": "<THREAD>",
+  "main": "index.js",
+  "repository": "https://github.com/alecglassford/threadbot",
+  "author": "alecglassford <glassford@stanford.edu>",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^4.0.0",
+    "twit": "^2.2.5"
+  }
+}
